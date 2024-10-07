@@ -1,11 +1,18 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path,include
 import apps.accounts.views as views
+from rest_framework.routers import DefaultRouter
+from apps.accounts.views import CustomUserViewSet
+
+# -------------------------------------------------------------------------------
+router = DefaultRouter()
+router.register(r'users', CustomUserViewSet)
 
 # -----------------------------------------------------------------------
 app_name="accounts"
 
 urlpatterns = [
+    path('', include(router.urls)),
     path('register/', views.RegisterUser.as_view(), name='register'),
     path('activate/',views.ActivateUser.as_view(), name='activate-user'),
     path('login/', views.LoginView.as_view(), name='login'),

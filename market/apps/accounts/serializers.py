@@ -121,7 +121,6 @@ class ChangePasswordSerializer(serializers.Serializer):
             user = CustomUser.objects.get(mobile_number=mobile_number, active_code=active_code)
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError(_("کد فعال‌سازی یا شماره موبایل نادرست است."))
-
         return attrs
 
     def save(self):
@@ -129,7 +128,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         new_password = self.validated_data['new_password']
         user = CustomUser.objects.get(mobile_number=mobile_number)
         user.set_password(new_password)  
-        user.active_code = ''  # پاک کردن کد فعال‌سازی پس از استفاده
+        user.active_code = '' 
         user.save()
 
 # ------------------------------------------------------------------------------------
