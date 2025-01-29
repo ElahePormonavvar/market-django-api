@@ -1,8 +1,9 @@
 import os
 from uuid import uuid4      #create a uniq hash code
-
+import random
+from sms_ir import SmsIr
+# -----------------------------------------------------------------------------
 def create_random_code(count):
-    import random
     count-=1
     return random.randint(10**count,10**(count+1)-1)
 
@@ -17,21 +18,27 @@ class FileUpload:
         return f"{self.dir}/{self.prefix}/{uuid4()}{ext}"
 
 # -----------------------------------------------------------------------------
-from kavenegar import *
-def send_sms(mobile_number,token):   
-    pass
-    # 1000689696
+def send_sms(number, code):
     try:
-        api =KavenegarAPI('3135443531774145637938476F58584E355A47326F356F4F77386B35594739323543434A622F64763778383D')
-        params = {
-             'receptor': mobile_number,
-             'template' :'verifyy',
-             'token': token,
-             'type':'sms',
-        }
-        response = api.verify_lookup(params)
-        return response 
-    except APIException as error:
-        print(f'error1:{error}')
-    except HTTPException as error:
-        print(f'error2:{error}')
+        sms_ir = SmsIr(api_key='xSXrnqLkAuAojUGThAxYiK5G4qyOYTULYsJ3uYGha88dWj3VWEXAC3kLO8ch2xtd')
+        result = sms_ir.send_verify_code(
+            number=str(number),
+            template_id=654532,
+            parameters=[
+                {
+                    "name": "CODE",
+                    "value": str(code)
+                }
+            ],
+        )
+        # بررسی پاسخ به صورت JSON
+        if result.status_code == 200:  # بررسی اینکه آیا درخواست موفق بوده است
+            result_data = result.json()  # تبدیل پاسخ به فرمت JSON
+            if result_data.get("status"):
+                print("پیامک با موفقیت ارسال شد.")
+            else:
+                print(f"خطا در ارسال پیامک: {result_data.get('message', 'اطلاعات بیشتر وجود ندارد.')}")
+        else:
+            print(f"خطا در ارسال پیامک: کد وضعیت HTTP: {result.status_code}")
+    except Exception as e:
+        print(f"خطا در ارسال پیامک: {e}")

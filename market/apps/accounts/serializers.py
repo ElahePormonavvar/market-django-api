@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth import authenticate
 import utils
 from django.utils.translation import gettext_lazy as _
 # -------------------------------------------------------------------------------------------------------
@@ -16,7 +15,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('mobile_number', 'email', 'name', 'family', 'password', 'password2')
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        password=attrs.get('password','')
+        password2=attrs.get('password2','')
+        if password != password2:
             raise serializers.ValidationError(_("رمزعبور و تکرار آن باید باهم برابر باشند"))
         return attrs
 
@@ -32,16 +33,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password'])
         user.save()
-        # بجای پیام اینو نوشتم تا خرید سرویس پیامک
-        print(f"کد فعال‌سازی: {active_code}")
-        # ارسال کد فعال‌سازی
-        # self.send_activation_code(user)
+        utils.send_sms(user.mobile_number,user.active_code)
+        # print(f"کد فعال‌سازی: {active_code}")
         return user
     
-    #  def send_activation_code(self, user):
-    #     # ارسال کد فعال‌سازی از طریق پیامک
-    #     utils.send_sms(user.mobile_number, user.active_code)
-
 # -----------------------------------------------------------------------------------------------------------------
 class ActivateUserSerializer(serializers.Serializer):
     mobile_number = serializers.CharField(max_length=11, required=True)
@@ -62,32 +57,16 @@ class ActivateUserSerializer(serializers.Serializer):
     def save(self):
         mobile_number = self.validated_data['mobile_number']
         user = CustomUser.objects.get(mobile_number=mobile_number)
-        user.is_active = True  # فعال کردن کاربر
-        user.active_code = ''  # پاک کردن کد فعال‌سازی بعد از استفاده
+        user.is_active = True 
+        user.active_code = '' 
         user.save()
         return user
     
 # -----------------------------------------------------------------------------------------------------------------
-class LoginSerializer(serializers.Serializer):
-    mobile_number = serializers.CharField(required=True)
-    password = serializers.CharField(write_only=True, required=True)
-
-    def validate(self, data):
-        user = authenticate(mobile_number=data['mobile_number'], password=data['password'])
-        if not user:
-            raise serializers.ValidationError(_("شماره موبایل یا رمز عبور نادرست است"))
-        if not user.is_active:
-            raise serializers.ValidationError(_("حساب کاربری فعال نیست"))
-        data['user'] = user
-        return data
-    
-# ===================================================================================================================================================
-# ===================================================================================================================================================
 class SendActivationCodeSerializer(serializers.Serializer):
     mobile_number = serializers.CharField(write_only=True)
 
     def validate_mobile_number(self, value):
-        # بررسی وجود کاربر با این شماره موبایل
         try:
             user = CustomUser.objects.get(mobile_number=value)
         except CustomUser.DoesNotExist:
@@ -98,8 +77,8 @@ class SendActivationCodeSerializer(serializers.Serializer):
         active_code = utils.create_random_code(5) 
         user.active_code = active_code
         user.save()
-        # اینجا می‌توانید از سرویس پیامکی برای ارسال کد استفاده کنید
-        print(f"کد فعال‌سازی: {active_code}")
+        utils.send_sms(user.mobile_number,user.active_code)
+        # print(f"کد فعال‌سازی: {active_code}")
         return active_code
 
     def save(self):

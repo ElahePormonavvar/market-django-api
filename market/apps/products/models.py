@@ -72,8 +72,8 @@ class Product(models.Model):
     def __str__(self) -> str:
         return self.product_name
     
-#     def get_absolute_url(self):
-#         return reverse('products:product_details', kwargs={'slug': self.slug})
+    def get_absolute_url(self):
+        return reverse('products:product_details', kwargs={'slug': self.slug})
     
 
 # # ================قیمت با تخفیف کالا====================

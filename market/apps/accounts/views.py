@@ -1,69 +1,79 @@
-from rest_framework import status
+from rest_framework import status,generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .serializers import (RegisterSerializer,LoginSerializer,ActivateUserSerializer,
-                          SendActivationCodeSerializer,ChangePasswordSerializer,CustomUserSerializer)
-from rest_framework.authtoken.models import Token
+from .serializers import (RegisterSerializer,ActivateUserSerializer,SendActivationCodeSerializer,ChangePasswordSerializer,CustomUserSerializer)
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
 from apps.accounts.models import CustomUser
+from rest_framework.generics import GenericAPIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
-# ----------------------------------------------------------------------------------------------------------------
-class RegisterUser(APIView):
+# ---------------------------------------------------------------------------------------------------------------
+class RegisterUser(GenericAPIView):
+    serializer_class = RegisterSerializer 
+
     def post(self, request, *args, **kwargs):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            serializer.save()
             return Response({
                 "message": "کاربر با موفقیت ایجاد شد. کد فعال‌سازی به شماره موبایل شما ارسال شد."
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
 # ----------------------------------------------------------------------------------------------------------------
-class ActivateUser(APIView):
+class ActivateUser(GenericAPIView):
+    serializer_class = ActivateUserSerializer
+
     def post(self, request, *args, **kwargs):
-        serializer = ActivateUserSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()  # حساب کاربر فعال می‌شود
+            # فعال‌سازی حساب کاربری
+            user = serializer.save()
             return Response({
                 "message": "حساب کاربری شما با موفقیت فعال شد. حالا می‌توانید وارد حساب خود شوید."
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 # ----------------------------------------------------------------------------------------------------------------
-class LoginView(APIView):
-    def post(self, request, *args, **kwargs):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
-            token, _ = Token.objects.get_or_create(user=user)
-            return Response({
-                "message": "ورود با  موفقیت انجام شد", 
-                "token": token.key,
-                "user": {
-                    "mobile_number": user.mobile_number,
-                    "email": user.email,
-                    "name": user.name,
-                    "family": user.family,
-                }
-            }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+        data.update({
+            "message": "ورود با موفقیت انجام شد",
+            "user": {
+                "mobile_number": user.mobile_number,
+                "email": user.email,
+                "name": user.name,
+                "family": user.family,
+            }
+        })
+        return data
+
+class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 # --------------------------------------------------------------------------------------
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]  # فقط کاربران لاگین شده می‌توانند از این ویو استفاده کنند
+class LogoutView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        # توکن کاربر را پیدا کرده و حذف می‌کند
+    def post(self, request, *args, **kwargs):
         try:
-            token = Token.objects.get(user=request.user)
-            token.delete()  # حذف توکن کاربر
-            return Response({"message": "خروج با موفقیت انجام شد"}, status=status.HTTP_200_OK)
-        except Token.DoesNotExist:
-            return Response({"error": "خطا به هنگام خروج رخ داده"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response({"error": "توکن رفرش ارائه نشده است"}, status=status.HTTP_400_BAD_REQUEST)
+
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # بی‌اعتبار کردن توکن
+
+            return Response({"message": "با موفقیت خارج شدید"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "خطایی رخ داده است"}, status=status.HTTP_400_BAD_REQUEST)
 
 # ------------------------------------------------------------------------------------------
 class SendActivationCodeView(APIView):
@@ -84,6 +94,8 @@ class PasswordRememberRequestView(APIView):
 
 # ------------------------------------------------------------------------------------------
 class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if serializer.is_valid():
@@ -95,3 +107,4 @@ class ChangePasswordView(APIView):
 class CustomUserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
+    permission_classes = [IsAuthenticated]
