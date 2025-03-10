@@ -22,7 +22,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data): 
-        active_code = utils.create_random_code(5)
+        active_code = utils.creat_random_code(5)
         user = CustomUser.objects.create_user(
             mobile_number=validated_data['mobile_number'],
             email = validated_data.get('email', ''),
@@ -74,7 +74,7 @@ class SendActivationCodeSerializer(serializers.Serializer):
         return value
 
     def create_reset_code(self, user):
-        active_code = utils.create_random_code(5) 
+        active_code = utils.creat_random_code(5) 
         user.active_code = active_code
         user.save()
         utils.send_sms(user.mobile_number,user.active_code)
